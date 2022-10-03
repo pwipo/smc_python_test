@@ -22,13 +22,22 @@ class Value(SMCApi.IValue):
         else:
             raise ValueError("wrong type")
 
+    def getType(self):
+        return self.type
+
+    def getValue(self):
+        return self.value
+
 
 class Message(SMCApi.IMessage, SMCApi.IValue):
-    def __init__(self, messageType, value, date=datetime.datetime.now()):
+    def __init__(self, messageType, value, date=None):
         # type: (SMCApi.MessageType, SMCApi.IValue, datetime) -> None
         self.messageType = messageType
         self.value = value
-        self.date = date
+        if date is not None:
+            self.date = date
+        else:
+            self.date = datetime.datetime.now()
 
     def getDate(self):
         return self.date
@@ -46,7 +55,10 @@ class Message(SMCApi.IMessage, SMCApi.IValue):
 class Action(SMCApi.IAction):
     def __init__(self, messages, type):
         # type: (List[SMCApi.IMessage], SMCApi.ActionType) -> None
-        self.messages = messages is not None if list(messages) else []
+        if messages is not None:
+            self.messages = list(messages)
+        else:
+            self.messages = []
         self.type = type
 
     def getMessages(self):
@@ -59,7 +71,10 @@ class Action(SMCApi.IAction):
 class Command(SMCApi.ICommand):
     def __init__(self, actions, type):
         # type: (List[SMCApi.IAction], SMCApi.CommandType) -> None
-        self.actions = actions is not None if list(actions) else []
+        if actions is not None:
+            self.actions = list(actions)
+        else:
+            self.actions = []
         self.type = type
 
     def getActions(self):
@@ -69,73 +84,24 @@ class Command(SMCApi.ICommand):
         return self.type
 
 
-class Process:
-    def __init__(self, configurationTool, module):
-        # type: (ConfigurationToolImpl, SMCApi.Module) -> None
-        self.configurationTool = configurationTool
-        self.module = module
-
-    def start(self):
-        result = []
-        if self.module is None:
-            return result
-        result.append(Message(SMCApi.MessageType.MESSAGE_ACTION_START, Value(1)))
-        try:
-            self.module.start(self.configurationTool)
-        except Exception as e:
-            result.append(Message(SMCApi.MessageType.MESSAGE_ACTION_ERROR, Value("error {}".format(e))))
-        result.append(Message(SMCApi.MessageType.MESSAGE_ACTION_STOP, Value(1)))
-
-    def execute(self, executionContextTool):
-        # type: (ExecutionContextToolImpl) -> List[SMCApi.IMessage]
-        result = []
-        if self.module is None:
-            return result
-        self.configurationTool.init(executionContextTool)
-        executionContextTool.init(self.configurationTool)
-        result.append(Message(SMCApi.MessageType.MESSAGE_ACTION_START, Value(1)))
-        try:
-            output = list(executionContextTool.output)
-            executionContextTool.output = []
-            self.module.process(self.configurationTool, executionContextTool)
-            output.extend(executionContextTool.output)
-            executionContextTool.output = output
-        except Exception as e:
-            result.append(Message(SMCApi.MessageType.MESSAGE_ACTION_ERROR, Value("error {}".format(e))))
-        result.append(Message(SMCApi.MessageType.MESSAGE_ACTION_STOP, Value(1)))
-
-    def update(self):
-        result = []
-        if self.module is None:
-            return result
-        result.append(Message(SMCApi.MessageType.MESSAGE_ACTION_START, Value(1)))
-        try:
-            self.module.update(self.configurationTool)
-        except Exception as e:
-            result.append(Message(SMCApi.MessageType.MESSAGE_ACTION_ERROR, Value("error {}".format(e))))
-        result.append(Message(SMCApi.MessageType.MESSAGE_ACTION_STOP, Value(1)))
-
-    def stop(self):
-        result = []
-        if self.module is None:
-            return result
-        result.append(Message(SMCApi.MessageType.MESSAGE_ACTION_START, Value(1)))
-        try:
-            self.module.stop(self.configurationTool)
-        except Exception as e:
-            result.append(Message(SMCApi.MessageType.MESSAGE_ACTION_ERROR, Value("error {}".format(e))))
-        result.append(Message(SMCApi.MessageType.MESSAGE_ACTION_STOP, Value(1)))
-
-
 class Configuration(SMCApi.CFGIConfigurationManaged):
     def __init__(self, name, executionContextTool=None, description=None, settings=None, variables=None, bufferSize=None):
         # type: (str, ExecutionContextToolImpl, str, Dict[str, SMCApi.IValue], Dict[str, SMCApi.IValue], int) -> None
         self.name = name
         self.executionContextTool = executionContextTool
         self.description = description
-        self.settings = settings is not None if dict(settings) else {}
-        self.variables = variables is not None if dict(variables) else {}
-        self.bufferSize = bufferSize is not None if bufferSize else 1
+        if settings is not None:
+            self.settings = dict(settings)
+        else:
+            self.settings = {}
+        if variables is not None:
+            self.variables = dict(variables)
+        else:
+            self.variables = {}
+        if bufferSize is not None:
+            self.bufferSize = bufferSize
+        else:
+            self.bufferSize = 1
         self.enable = True
 
     def setName(self, name):
@@ -210,16 +176,101 @@ class Configuration(SMCApi.CFGIConfigurationManaged):
         return self.enable
 
 
+class ConfigurationToolImpl(SMCApi.ConfigurationTool):
+    def __init__(self, name, description=None, settings=None, homeFolder=None, workDirectory=None):
+        # type: (str, str, Dict[str, SMCApi.IValue], str, str) -> None
+        # SMCApi.CFGIConfiguration
+        self.configuration = Configuration(name, None, description, settings)
+        if homeFolder is None:
+            homeFolder = tempfile.gettempdir()
+        self.homeFolder = homeFolder
+        if workDirectory is None:
+            workDirectory = tempfile.gettempdir()
+        self.workDirectory = workDirectory
+
+    def init(self, executionContextTool):
+        # type: (ExecutionContextToolImpl) -> None
+        self.configuration.executionContextTool = executionContextTool
+
+    def setVariable(self, key, value):
+        self.configuration.setVariable(key, value)
+
+    def isVariableChanged(self, key):
+        return False
+
+    def removeVariable(self, key):
+        self.configuration.removeVariable(key)
+
+    def getHomeFolder(self):
+        return None
+
+    def getWorkDirectory(self):
+        return self.workDirectory
+
+    def countExecutionContexts(self):
+        return self.configuration.countExecutionContexts()
+
+    def getExecutionContext(self, id):
+        self.configuration.getExecutionContext(id)
+
+    def getContainer(self):
+        self.configuration.getContainer()
+
+    def hasLicense(self, freeDays):
+        return True
+
+    def getModule(self):
+        return self.configuration.getModule()
+
+    def getName(self):
+        return self.configuration.getName()
+
+    def getDescription(self):
+        return self.configuration.getDescription()
+
+    def getAllSettings(self):
+        return self.configuration.getAllSettings()
+
+    def getSetting(self, key):
+        return self.configuration.getSetting(key)
+
+    def getAllVariables(self):
+        return self.configuration.getAllVariables()
+
+    def getVariable(self, key):
+        return self.configuration.getVariable(key)
+
+    def getBufferSize(self):
+        return self.configuration.getBufferSize()
+
+    def isEnable(self):
+        return self.configuration.isEnable()
+
+
 class ExecutionContextToolImpl(SMCApi.ExecutionContextTool, SMCApi.ConfigurationControlTool, SMCApi.FlowControlTool):
     def __init__(self, input=None, managedConfigurations=None, executionContextsOutput=None, executionContexts=None):
         # type: (List[List[SMCApi.IAction]], List[Configuration], List[SMCApi.IAction], List[Callable[[List[object]], SMCApi.IAction]]) -> None
-        self.input = input is not None if list(input) else []
+        if input is not None:
+            self.input = list(input)
+        else:
+            self.input = []
         self.output = []
-        self.managedConfigurations = managedConfigurations is not None if list(managedConfigurations) else []
+        if managedConfigurations is not None:
+            self.managedConfigurations = list(managedConfigurations)
+        else:
+            self.managedConfigurations = []
         for c in self.managedConfigurations:
             c.executionContextTool = self
-        self.executionContextsOutput = executionContextsOutput is not None if list(executionContextsOutput) else []
-        self.executionContexts = executionContexts is not None if list(executionContexts) else []
+        if executionContextsOutput is not None:
+            self.executionContextsOutput = list(executionContextsOutput)
+        else:
+            self.executionContextsOutput = []
+        if executionContexts is not None:
+            self.executionContexts = list(executionContexts)
+            for ec in self.executionContexts:
+                self.executionContextsOutput.append(None)
+        else:
+            self.executionContexts = []
         self.configuration = None
 
     def init(self, configurationTool):
@@ -329,72 +380,64 @@ class ExecutionContextToolImpl(SMCApi.ExecutionContextTool, SMCApi.Configuration
         return None
 
 
-class ConfigurationToolImpl(SMCApi.ConfigurationTool):
-    def __init__(self, name, description, settings, homeFolder=None, workDirectory=None):
-        # type: (str, str, Dict[str, SMCApi.IValue], str, str) -> None
-        # SMCApi.CFGIConfiguration
-        self.configuration = Configuration(name, None, description, settings)
-        if homeFolder is None:
-            homeFolder = tempfile.gettempdir()
-        self.homeFolder = homeFolder
-        if workDirectory is None:
-            workDirectory = tempfile.gettempdir()
-        self.workDirectory = workDirectory
+class Process:
+    def __init__(self, configurationTool, module):
+        # type: (ConfigurationToolImpl, SMCApi.Module) -> None
+        self.configurationTool = configurationTool
+        self.module = module
 
-    def init(self, executionContextTool):
-        # type: (ExecutionContextToolImpl) -> None
-        self.configuration.executionContextTool = executionContextTool
+    def start(self):
+        result = []
+        if self.module is None:
+            return result
+        result.append(Message(SMCApi.MessageType.MESSAGE_ACTION_START, Value(1)))
+        try:
+            self.module.start(self.configurationTool)
+        except Exception as e:
+            result.append(Message(SMCApi.MessageType.MESSAGE_ACTION_ERROR, Value("error {}".format(e.message))))
+        result.append(Message(SMCApi.MessageType.MESSAGE_ACTION_STOP, Value(1)))
+        return result
 
-    def setVariable(self, key, value):
-        self.configuration.setVariable(key, value)
+    def execute(self, executionContextTool):
+        # type: (ExecutionContextToolImpl) -> List[SMCApi.IMessage]
+        result = []
+        if self.module is None:
+            return result
+        self.configurationTool.init(executionContextTool)
+        executionContextTool.init(self.configurationTool)
+        result.append(Message(SMCApi.MessageType.MESSAGE_ACTION_START, Value(1)))
+        try:
+            output = list(executionContextTool.output)
+            executionContextTool.output = []
+            self.module.process(self.configurationTool, executionContextTool)
+            result.extend(executionContextTool.output)
+            output.extend(executionContextTool.output)
+            executionContextTool.output = output
+        except Exception as e:
+            result.append(Message(SMCApi.MessageType.MESSAGE_ACTION_ERROR, Value("error {}".format(e.message))))
+        result.append(Message(SMCApi.MessageType.MESSAGE_ACTION_STOP, Value(1)))
+        return result
 
-    def isVariableChanged(self, key):
-        return False
+    def update(self):
+        result = []
+        if self.module is None:
+            return result
+        result.append(Message(SMCApi.MessageType.MESSAGE_ACTION_START, Value(1)))
+        try:
+            self.module.update(self.configurationTool)
+        except Exception as e:
+            result.append(Message(SMCApi.MessageType.MESSAGE_ACTION_ERROR, Value("error {}".format(e.message))))
+        result.append(Message(SMCApi.MessageType.MESSAGE_ACTION_STOP, Value(1)))
+        return result
 
-    def removeVariable(self, key):
-        self.configuration.removeVariable(key)
-
-    def getHomeFolder(self):
-        return None
-
-    def getWorkDirectory(self):
-        return self.workDirectory
-
-    def countExecutionContexts(self):
-        return self.configuration.countExecutionContexts()
-
-    def getExecutionContext(self, id):
-        self.configuration.getExecutionContext(id)
-
-    def getContainer(self):
-        self.configuration.getContainer()
-
-    def hasLicense(self, freeDays):
-        return True
-
-    def getModule(self):
-        return self.configuration.getModule()
-
-    def getName(self):
-        return self.configuration.getName()
-
-    def getDescription(self):
-        return self.configuration.getDescription()
-
-    def getAllSettings(self):
-        return self.configuration.getAllSettings()
-
-    def getSetting(self, key):
-        return self.configuration.getSetting(key)
-
-    def getAllVariables(self):
-        return self.configuration.getAllVariables()
-
-    def getVariable(self, key):
-        return self.configuration.getVariable(key)
-
-    def getBufferSize(self):
-        return self.configuration.getBufferSize()
-
-    def isEnable(self):
-        return self.configuration.isEnable()
+    def stop(self):
+        result = []
+        if self.module is None:
+            return result
+        result.append(Message(SMCApi.MessageType.MESSAGE_ACTION_START, Value(1)))
+        try:
+            self.module.stop(self.configurationTool)
+        except Exception as e:
+            result.append(Message(SMCApi.MessageType.MESSAGE_ACTION_ERROR, Value("error {}".format(e.message))))
+        result.append(Message(SMCApi.MessageType.MESSAGE_ACTION_STOP, Value(1)))
+        return result
