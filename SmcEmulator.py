@@ -1,3 +1,7 @@
+"""
+created by Nikolay V. Ulyanov (ulianownv@mail.ru)
+http://www.smcsystem.ru
+"""
 import datetime
 import tempfile
 
