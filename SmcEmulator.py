@@ -276,6 +276,7 @@ class ExecutionContextToolImpl(SMCApi.ExecutionContextTool, SMCApi.Configuration
         else:
             self.executionContexts = []
         self.configuration = None
+        self.executeInParalel = []
 
     def init(self, configurationTool):
         # type: (ConfigurationToolImpl) -> None
@@ -362,23 +363,26 @@ class ExecutionContextToolImpl(SMCApi.ExecutionContextTool, SMCApi.Configuration
         self.executionContextsOutput[managedId] = self.executionContexts[managedId](inputList)
 
     def executeParallel(self, type, managedIds, values, waitingTacts=0, maxWorkInterval=-1):
-        pass
+        inputList = []
+        if values is not None:
+            for v in values:
+                inputList.append(Value(v))
+        self.executeInParalel.append(managedIds)
+        for managedId in managedIds:
+            self.executionContextsOutput[managedId] = self.executionContexts[managedId](inputList)
+        return len(self.executeInParalel)
 
     def isThreadActive(self, threadId):
         return False
 
     def getMessagesFromExecuted(self, threadId=0, managedId=0):
-        if threadId == 0:
-            return [self.executionContextsOutput[managedId]]
-        return []
+        return [self.executionContextsOutput[managedId]]
 
     def getCommandsFromExecuted(self, threadId=0, managedId=0):
-        if threadId == 0:
-            return [Command(self.executionContextsOutput[managedId], SMCApi.CommandType.EXECUTE)]
-        return []
+        return [Command(self.executionContextsOutput[managedId], SMCApi.CommandType.EXECUTE)]
 
     def releaseThread(self, threadId):
-        pass
+        del self.executeInParalel[threadId]
 
     def getManagedExecutionContext(self, id):
         return None
