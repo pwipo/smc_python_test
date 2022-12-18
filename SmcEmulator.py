@@ -3,6 +3,7 @@ created by Nikolay V. Ulyanov (ulianownv@mail.ru)
 http://www.smcsystem.ru
 """
 import datetime
+import os.path
 import tempfile
 
 import SMCApi
@@ -13,7 +14,7 @@ class Value(SMCApi.IValue):
     def __init__(self, value):
         # type: (any) -> None
         self.value = value
-        if type(value) == str:
+        if isinstance(value, basestring):  # type(value) == str:
             self.type = SMCApi.ValueType.STRING
         elif type(value) == bytearray or type(value) == bytes:
             self.type = SMCApi.ValueType.BYTES
@@ -88,9 +89,123 @@ class Command(SMCApi.ICommand):
         return self.type
 
 
+class FileToolImpl(SMCApi.FileTool):
+    def __init__(self, fileName):
+        # type: (str) -> None
+        self.fileName = fileName
+
+    def getName(self):
+        return os.path.basename(self.fileName)
+
+    def exists(self):
+        return os.path.exists(self.fileName)
+
+    def isDirectory(self):
+        return os.path.isdir(self.fileName)
+
+    def getChildrens(self):
+        childrens = []
+        for fileName in os.listdir(self.fileName):
+            childrens.append(FileToolImpl(os.path.join(self.fileName, fileName)))
+        return childrens
+
+    def getBytes(self):
+        f = open(self.fileName, "rb")
+        data = f.read()
+        f.close()
+        return data
+
+    def length(self):
+        return os.path.getsize(self.fileName)
+
+
+class Module(SMCApi.CFGIModule):
+    def __init__(self, name, minCountSources=-1, maxCountSources=-1, minCountExecutionContexts=-1, maxCountExecutionContexts=-1,
+                 minCountManagedConfigurations=-1, maxCountManagedConfigurations=-1):
+        # type: (str, int, int, int, int, int, int) -> None
+        self.name = name
+        self.minCountSources = minCountSources
+        self.maxCountSources = maxCountSources
+        self.minCountExecutionContexts = minCountExecutionContexts
+        self.maxCountExecutionContexts = maxCountExecutionContexts
+        self.minCountManagedConfigurations = minCountManagedConfigurations
+        self.maxCountManagedConfigurations = maxCountManagedConfigurations
+
+    def getName(self):
+        return self.name
+
+    def getMinCountSources(self):
+        return self.minCountSources
+
+    def getMaxCountSources(self):
+        return self.maxCountSources
+
+    def getMinCountExecutionContexts(self):
+        return self.minCountExecutionContexts
+
+    def getMaxCountExecutionContexts(self):
+        return self.maxCountExecutionContexts
+
+    def getMinCountManagedConfigurations(self):
+        return self.minCountManagedConfigurations
+
+    def getMaxCountManagedConfigurations(self):
+        return self.maxCountManagedConfigurations
+
+
+class Container(SMCApi.CFGIContainerManaged):
+    def __init__(self, name, containers=None, configurations=None):
+        # type: (str, List[SMCApi.CFGIContainer], List[SMCApi.CFGIConfiguration]) -> None
+        self.name = name
+        self.enable = True
+        if containers is not None:
+            self.containers = list(containers)
+        else:
+            self.containers = []
+        if configurations is not None:
+            self.configurations = list(configurations)
+        else:
+            self.configurations = []
+
+    def countConfigurations(self):
+        return len(self.configurations)
+
+    def getConfiguration(self, id):
+        return self.configurations[id]
+
+    def countManagedConfigurations(self):
+        return len(self.configurations)
+
+    def getManagedConfiguration(self, id):
+        return self.configurations[id]
+
+    def countContainers(self):
+        return len(self.containers)
+
+    def getContainer(self, id):
+        return self.containers[id]
+
+    def createContainer(self, name):
+        container = Container(name);
+        self.containers.append(container)
+        return container
+
+    def removeContainer(self, id):
+        self.containers.pop(id)
+
+    def getName(self):
+        return self.name
+
+    def isEnable(self):
+        return self.enable
+
+
 class Configuration(SMCApi.CFGIConfigurationManaged):
-    def __init__(self, name, executionContextTool=None, description=None, settings=None, variables=None, bufferSize=None):
-        # type: (str, ExecutionContextToolImpl, str, Dict[str, SMCApi.IValue], Dict[str, SMCApi.IValue], int) -> None
+    def __init__(self, container, module, name, executionContextTool=None, description=None, settings=None, variables=None, executionContexts=None,
+                 bufferSize=None):
+        # type: (SMCApi.CFGIContainer, SMCApi.Module, str, SMCApi.ExecutionContextTool, str, Dict[str, SMCApi.IValue], Dict[str, SMCApi.IValue], List[SMCApi.CFGIExecutionContextManaged], int) -> None
+        self.container = container
+        self.module = module
         self.name = name
         self.executionContextTool = executionContextTool
         self.description = description
@@ -102,11 +217,18 @@ class Configuration(SMCApi.CFGIConfigurationManaged):
             self.variables = dict(variables)
         else:
             self.variables = {}
+        if executionContexts is not None:
+            self.executionContexts = list(executionContexts)
+        else:
+            self.executionContexts = []
         if bufferSize is not None:
             self.bufferSize = bufferSize
         else:
             self.bufferSize = 1
         self.enable = True
+
+        if self.container:
+            self.container.configurations.append(self)
 
     def setName(self, name):
         self.name = name
@@ -138,10 +260,10 @@ class Configuration(SMCApi.CFGIConfigurationManaged):
         self.executionContextTool.add(SMCApi.MessageType.MESSAGE_CONFIGURATION_CONTROL_CONFIGURATION_UPDATE, self.getName())
 
     def countExecutionContexts(self):
-        return 0
+        return len(self.executionContexts)
 
     def getExecutionContext(self, id):
-        return None
+        return self.executionContexts[id]
 
     def createExecutionContext(self, name, maxWorkInterval=-1):
         self.executionContextTool.add(SMCApi.MessageType.MESSAGE_CONFIGURATION_CONTROL_EXECUTION_CONTEXT_CREATE, "{} {}".format(self.getName(), name))
@@ -150,10 +272,10 @@ class Configuration(SMCApi.CFGIConfigurationManaged):
         self.executionContextTool.add(SMCApi.MessageType.MESSAGE_CONFIGURATION_CONTROL_EXECUTION_CONTEXT_REMOVE, "{} {}".format(self.getName(), id))
 
     def getContainer(self):
-        return None
+        return self.container
 
     def getModule(self):
-        return None
+        return self.module
 
     def getName(self):
         return self.name
@@ -184,7 +306,7 @@ class ConfigurationToolImpl(SMCApi.ConfigurationTool):
     def __init__(self, name, description=None, settings=None, homeFolder=None, workDirectory=None):
         # type: (str, str, Dict[str, SMCApi.IValue], str, str) -> None
         # SMCApi.CFGIConfiguration
-        self.configuration = Configuration(name, None, description, settings)
+        self.configuration = Configuration(Container("rootContainer"), Module("Module"), name, None, description, settings)
         if homeFolder is None:
             homeFolder = tempfile.gettempdir()
         self.homeFolder = homeFolder
@@ -206,7 +328,7 @@ class ConfigurationToolImpl(SMCApi.ConfigurationTool):
         self.configuration.removeVariable(key)
 
     def getHomeFolder(self):
-        return None
+        return FileToolImpl(self.homeFolder)
 
     def getWorkDirectory(self):
         return self.workDirectory
@@ -277,6 +399,13 @@ class ExecutionContextToolImpl(SMCApi.ExecutionContextTool, SMCApi.Configuration
             self.executionContexts = []
         self.configuration = None
         self.executeInParalel = []
+        self.modules = []
+        modulesByName = {}
+        for cfg in self.managedConfigurations:
+            modulesByName[cfg.getModule().getName()] = cfg.getModule()
+        modulesByName["Module"] = Module("Module")
+        for name in modulesByName:
+            self.modules.append(modulesByName[name])
 
     def init(self, configurationTool):
         # type: (ConfigurationToolImpl) -> None
@@ -287,10 +416,20 @@ class ExecutionContextToolImpl(SMCApi.ExecutionContextTool, SMCApi.Configuration
         self.addMessage(Message(messageType, Value(value)))
 
     def addMessage(self, value):
-        self.output.append(Message(SMCApi.MessageType.MESSAGE_DATA, Value(value)))
+        if isinstance(value, list):
+            date = datetime.datetime.now()
+            for element in value:
+                self.output.append(Message(SMCApi.MessageType.MESSAGE_DATA, Value(element), date))
+        else:
+            self.output.append(Message(SMCApi.MessageType.MESSAGE_DATA, Value(value)))
 
     def addError(self, value):
-        self.output.append(Message(SMCApi.MessageType.MESSAGE_ERROR_TYPE, Value(value)))
+        if isinstance(value, list):
+            date = datetime.datetime.now()
+            for element in value:
+                self.output.append(Message(SMCApi.MessageType.MESSAGE_ERROR_TYPE, Value(element), date))
+        else:
+            self.output.append(Message(SMCApi.MessageType.MESSAGE_ERROR_TYPE, Value(value)))
 
     def countCommands(self, sourceId):
         return len(self.input[sourceId])
@@ -338,7 +477,7 @@ class ExecutionContextToolImpl(SMCApi.ExecutionContextTool, SMCApi.Configuration
         return None
 
     def getModules(self):
-        return None
+        return self.modules
 
     def countManagedConfigurations(self):
         return len(self.managedConfigurations)
@@ -347,10 +486,12 @@ class ExecutionContextToolImpl(SMCApi.ExecutionContextTool, SMCApi.Configuration
         return self.managedConfigurations[id]
 
     def createConfiguration(self, id, container, module, name):
-        pass
+        configuration = Configuration(container, module, name)
+        self.managedConfigurations.append(configuration)
+        return configuration
 
     def removeManagedConfiguration(self, id):
-        pass
+        self.managedConfigurations.pop(id)
 
     def countManagedExecutionContexts(self):
         return len(self.executionContexts)
