@@ -14,16 +14,19 @@ class Value(SMCApi.IValue):
     def __init__(self, value):
         # type: (any) -> None
         self.value = value
-        if isinstance(value, basestring):  # type(value) == str:
+        valueType = type(value)
+        if valueType is str or valueType is unicode:  # isinstance(value, basestring):
             self.type = SMCApi.ValueType.STRING
-        elif type(value) == bytearray or type(value) == bytes:
+        elif valueType == bytearray or valueType == bytes:
             self.type = SMCApi.ValueType.BYTES
-        elif type(value) == int:
+        elif valueType == int:
             self.type = SMCApi.ValueType.INTEGER
-        elif type(value) == long:
+        elif valueType == long:
             self.type = SMCApi.ValueType.LONG
-        elif type(value) == float:
+        elif valueType == float:
             self.type = SMCApi.ValueType.DOUBLE
+        elif valueType == SMCApi.ObjectArray:
+            self.type = SMCApi.ValueType.OBJECT_ARRAY
         else:
             raise ValueError("wrong type")
 
@@ -267,6 +270,9 @@ class Configuration(SMCApi.CFGIConfigurationManaged):
 
     def createExecutionContext(self, name, maxWorkInterval=-1):
         self.executionContextTool.add(SMCApi.MessageType.MESSAGE_CONFIGURATION_CONTROL_EXECUTION_CONTEXT_CREATE, "{} {}".format(self.getName(), name))
+
+    def updateExecutionContext(self, id, name, maxWorkInterval=-1):
+        self.executionContextTool.add(SMCApi.MessageType.MESSAGE_CONFIGURATION_CONTROL_EXECUTION_CONTEXT_UPDATE, "{} {}".format(self.getName(), name))
 
     def removeExecutionContext(self, id):
         self.executionContextTool.add(SMCApi.MessageType.MESSAGE_CONFIGURATION_CONTROL_EXECUTION_CONTEXT_REMOVE, "{} {}".format(self.getName(), id))
