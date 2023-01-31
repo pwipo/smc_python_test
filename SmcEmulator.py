@@ -258,6 +258,10 @@ class Configuration(SMCApi.CFGIConfigurationManaged):
         self.bufferSize = bufferSize
         self.executionContextTool.add(SMCApi.MessageType.MESSAGE_CONFIGURATION_CONTROL_CONFIGURATION_UPDATE, self.getName())
 
+    def setThreadBufferSize(self, threadBufferSize):
+        self.threadBufferSize = threadBufferSize
+        self.executionContextTool.add(SMCApi.MessageType.MESSAGE_CONFIGURATION_CONTROL_CONFIGURATION_UPDATE, self.getName())
+
     def setEnable(self, enable):
         self.enable = enable
         self.executionContextTool.add(SMCApi.MessageType.MESSAGE_CONFIGURATION_CONTROL_CONFIGURATION_UPDATE, self.getName())
@@ -303,6 +307,9 @@ class Configuration(SMCApi.CFGIConfigurationManaged):
 
     def getBufferSize(self):
         return self.bufferSize
+
+    def getThreadBufferSize(self):
+        return self.threadBufferSize
 
     def isEnable(self):
         return self.enable
@@ -374,6 +381,9 @@ class ConfigurationToolImpl(SMCApi.ConfigurationTool):
 
     def getBufferSize(self):
         return self.configuration.getBufferSize()
+
+    def getThreadBufferSize(self):
+        return self.configuration.getThreadBufferSize()
 
     def isEnable(self):
         return self.configuration.isEnable()
