@@ -12,11 +12,11 @@ import SMCApi
 
 
 class Value(SMCApi.IValue):
-    def __init__(self, value, type=None):
+    def __init__(self, value, typev=None):
         # type: (any, SMCApi.ValueType) -> None
         self.value = value
-        self.type = type
-        if type is None:
+        self.typev = typev
+        if typev is None:
             valueType = type(value)
             if valueType is str or valueType is unicode:  # isinstance(value, basestring):
                 self.type = SMCApi.ValueType.STRING
@@ -36,7 +36,7 @@ class Value(SMCApi.IValue):
                 raise ValueError("wrong type")
 
     def getType(self):
-        return self.type
+        return self.typev
 
     def getValue(self):
         return self.value
@@ -292,7 +292,7 @@ class Configuration(SMCApi.CFGIConfigurationManaged):
         return self.executionContexts[id]
 
     def createExecutionContext(self, name, type, maxWorkInterval=-1):
-        executionContext = ExecutionContext(self.executionContextTool, self, name, None, None, None, maxWorkInterval, type)
+        executionContext = ExecutionContext(self.executionContextTool, name, None, None, None, None, maxWorkInterval, type)
         self.executionContexts.append(executionContext)
         self.executionContextTool.add(SMCApi.MessageType.CONFIGURATION_CONTROL_EXECUTION_CONTEXT_CREATE, "{} {}".format(self.getName(), name))
         return executionContext
@@ -391,7 +391,7 @@ class SourceList(SMCApi.CFGISourceListManaged):
         return source
 
     def createSourceValue(self, value):
-        source = Source(self.executionContextTool, self.configurationName, self.executionContextName, None, None, Value(value), None, None,
+        source = Source(self.executionContextTool, self.configurationName, self.executionContextName, None, None, Value(value), False, None,
                         SMCApi.SourceType.STATIC_VALUE, self.countSource())
         self.sources.append(source)
         self.executionContextTool.add(SMCApi.MessageType.CONFIGURATION_CONTROL_SOURCE_CONTEXT_CREATE,
@@ -399,7 +399,7 @@ class SourceList(SMCApi.CFGISourceListManaged):
         return source
 
     def createSource(self):
-        source = Source(self.executionContextTool, self.configurationName, self.executionContextName, None, None, None, None, None,
+        source = Source(self.executionContextTool, self.configurationName, self.executionContextName, None, None, None, False, None,
                         SMCApi.SourceType.MULTIPART, self.countSource())
         self.sources.append(source)
         self.executionContextTool.add(SMCApi.MessageType.CONFIGURATION_CONTROL_SOURCE_CONTEXT_CREATE,
@@ -407,7 +407,7 @@ class SourceList(SMCApi.CFGISourceListManaged):
         return source
 
     def createSourceObjectArray(self, value, fields):
-        source = Source(self.executionContextTool, self.configurationName, self.executionContextName, None, None, Value(value), None, None,
+        source = Source(self.executionContextTool, self.configurationName, self.executionContextName, None, None, Value(value), False, None,
                         SMCApi.SourceType.OBJECT_ARRAY, self.countSource())
         self.sources.append(source)
         self.executionContextTool.add(SMCApi.MessageType.CONFIGURATION_CONTROL_SOURCE_CONTEXT_CREATE,
@@ -431,7 +431,7 @@ class SourceList(SMCApi.CFGISourceListManaged):
         return source
 
     def updateSourceValue(self, id, value):
-        source = Source(self.executionContextTool, self.configurationName, self.executionContextName, None, None, Value(value), None, None,
+        source = Source(self.executionContextTool, self.configurationName, self.executionContextName, None, None, Value(value), False, None,
                         SMCApi.SourceType.STATIC_VALUE, self.countSource())
         self.sources[id] = source
         self.executionContextTool.add(SMCApi.MessageType.CONFIGURATION_CONTROL_SOURCE_CONTEXT_UPDATE,
@@ -439,7 +439,7 @@ class SourceList(SMCApi.CFGISourceListManaged):
         return source
 
     def updateSourceObjectArray(self, id, value, fields):
-        source = Source(self.executionContextTool, self.configurationName, self.executionContextName, None, None, Value(value), None, None,
+        source = Source(self.executionContextTool, self.configurationName, self.executionContextName, None, None, Value(value), False, None,
                         SMCApi.SourceType.OBJECT_ARRAY, self.countSource())
         self.sources[id] = source
         self.executionContextTool.add(SMCApi.MessageType.CONFIGURATION_CONTROL_SOURCE_CONTEXT_UPDATE,
@@ -474,7 +474,7 @@ class ExecutionContext(SourceList, SMCApi.CFGIExecutionContextManaged):
             configurationName = configuration.getName()
         else:
             configurationName = "default"
-        super(SourceList, self).__init__(self, executionContextTool, configurationName, name, sources)
+        super(ExecutionContext, self).__init__(executionContextTool, configurationName, name, sources)
 
         self.executionContextTool = executionContextTool
         self.configuration = configuration
@@ -625,8 +625,9 @@ class SourceFilter(SMCApi.CFGISourceFilter):
 
 
 class Source(SMCApi.CFGISourceManaged):
-    def __init__(self, executionContextTool, configurationName, executionContextName, executionContextSource, configurationSource, valueSource,
-                 eventDriven, sources, type, order):
+    def __init__(self, executionContextTool, configurationName, executionContextName, executionContextSource=None, configurationSource=None,
+                 valueSource=None,
+                 eventDriven=False, sources=None, type=SMCApi.SourceType.STATIC_VALUE, order=0):
         # type: (ExecutionContextToolImpl, str,str, SMCApi.CFGIExecutionContext, SMCApi.CFGIConfiguration, SMCApi.IValue, bool, List[SMCApi.CFGISourceManaged], SMCApi.SourceType, int) -> None
         self.executionContextTool = executionContextTool
         self.configurationName = configurationName
@@ -772,8 +773,8 @@ class ConfigurationToolImpl(Configuration, SMCApi.ConfigurationTool):
             bufferSize = None
             threadBufferSize = None
 
-        super(Configuration, self).__init__(self, executionContextTool, container, module, name, description, settings, variables, executionContexts,
-                                            bufferSize, threadBufferSize)
+        super(ConfigurationToolImpl, self).__init__(executionContextTool, container, module, name, description, settings, variables,
+                                                    executionContexts, bufferSize, threadBufferSize)
         if homeFolder is None:
             homeFolder = tempfile.gettempdir()
         self.homeFolder = homeFolder
@@ -787,20 +788,20 @@ class ConfigurationToolImpl(Configuration, SMCApi.ConfigurationTool):
 
     def init(self, executionContextTool):
         # type: (ExecutionContextToolImpl) -> None
-        self.configuration.executionContextTool = executionContextTool
+        self.executionContextTool = executionContextTool
 
     def getVariablesChangeFlag(self):
         return self.variablesChangeFlag
 
     def setVariable(self, key, value):
-        super(Configuration, self).setVariable(key, value)
+        super(ConfigurationToolImpl, self).setVariable(key, value)
         self.variablesChangeFlag[key] = False
 
     def isVariableChanged(self, key):
         return self.variablesChangeFlag[key]
 
     def removeVariable(self, key):
-        super(Configuration, self).removeVariable(key)
+        super(ConfigurationToolImpl, self).removeVariable(key)
         self.variablesChangeFlag[key] = False
 
     def getHomeFolder(self):
@@ -809,26 +810,42 @@ class ConfigurationToolImpl(Configuration, SMCApi.ConfigurationTool):
     def getWorkDirectory(self):
         return self.workDirectory
 
+    # noinspection PyStatementEffect
     def loggerTrace(self, text):
-        print "%s: Log Cfg %d: %s" % (datetime.datetime.now(), 0, text)
+        print
+        "%s: Log Cfg %d: %s" % (datetime.datetime.now(), 0, text)
 
+    # noinspection PyStatementEffect
     def loggerDebug(self, text):
-        print "%s: Log Cfg %d: %s" % (datetime.datetime.now(), 0, text)
+        print
+        "%s: Log Cfg %d: %s" % (datetime.datetime.now(), 0, text)
 
+    # noinspection PyStatementEffect
     def loggerInfo(self, text):
-        print "%s: Log Cfg %d: %s" % (datetime.datetime.now(), 0, text)
+        print
+        "%s: Log Cfg %d: %s" % (datetime.datetime.now(), 0, text)
 
+    # noinspection PyStatementEffect
     def loggerWarn(self, text):
-        print "%s: Log Cfg %d: %s" % (datetime.datetime.now(), 0, text)
+        print
+        "%s: Log Cfg %d: %s" % (datetime.datetime.now(), 0, text)
 
+    # noinspection PyStatementEffect
     def loggerError(self, text):
-        print "%s: Log Cfg %d: %s" % (datetime.datetime.now(), 0, text)
+        print
+        "%s: Log Cfg %d: %s" % (datetime.datetime.now(), 0, text)
 
 
-class ExecutionContextToolImpl(ExecutionContext, SMCApi.ExecutionContextTool, SMCApi.ConfigurationControlTool, SMCApi.FlowControlTool):
+# noinspection PyAbstractClass
+class ExecutionContextToolImpl(ExecutionContext, SMCApi.ExecutionContextTool):
     def __init__(self, input=None, managedConfigurations=None, executionContextsOutput=None, executionContexts=None, name="default", type="default"):
         # type: (List[List[SMCApi.IAction]], List[Configuration], List[SMCApi.IAction], List[Callable[[List[object]], SMCApi.IAction]], str, str) -> None
-        super(ExecutionContext, self).__init__(self, self, name)
+        # ExecutionContext.__init__(self, self, name)
+        SMCApi.FlowControlTool.__init__(self)
+        SMCApi.ConfigurationControlTool.__init__(self)
+        SMCApi.ExecutionContextTool.__init__(self)
+        ExecutionContext.__init__(self, self, name)
+        # super(ExecutionContextToolImpl, self).__init__(name)
         if input is not None:
             self.input = list(input)
         else:
@@ -846,7 +863,7 @@ class ExecutionContextToolImpl(ExecutionContext, SMCApi.ExecutionContextTool, SM
             self.executionContextsOutput = []
         if executionContexts is not None:
             self.executionContexts = list(executionContexts)
-            for ec in self.executionContexts:
+            for _ in self.executionContexts:
                 self.executionContextsOutput.append(None)
         else:
             self.executionContexts = []
@@ -874,7 +891,7 @@ class ExecutionContextToolImpl(ExecutionContext, SMCApi.ExecutionContextTool, SM
 
     def add(self, messageType, value):
         # type: (SMCApi.MessageType, object) -> None
-        self.addMessage(Message(messageType, Value(value)))
+        self.output.append(Message(messageType, Value(value)))
 
     def addMessage(self, value):
         if not value:
@@ -921,6 +938,7 @@ class ExecutionContextToolImpl(ExecutionContext, SMCApi.ExecutionContextTool, SM
             lst = lst[fromIndex: toIndex]
         return lst
 
+    # noinspection PyMethodMayBeStatic
     def filter(self, actions, actionType=None, messageType=None):
         # type: (List[SMCApi.IAction], SMCApi.ActionType, SMCApi.MessageType)->List[SMCApi.IAction]
         result = []
