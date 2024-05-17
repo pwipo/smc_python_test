@@ -19,19 +19,19 @@ class Value(SMCApi.IValue):
         if typev is None:
             valueType = type(value)
             if valueType is str or valueType is unicode:  # isinstance(value, basestring):
-                self.type = SMCApi.ValueType.STRING
+                self.typev = SMCApi.ValueType.STRING
             elif valueType == bytearray or valueType == bytes:
-                self.type = SMCApi.ValueType.BYTES
+                self.typev = SMCApi.ValueType.BYTES
             elif valueType == int:
-                self.type = SMCApi.ValueType.INTEGER
+                self.typev = SMCApi.ValueType.INTEGER
             elif valueType == long:
-                self.type = SMCApi.ValueType.LONG
+                self.typev = SMCApi.ValueType.LONG
             elif valueType == float:
-                self.type = SMCApi.ValueType.DOUBLE
+                self.typev = SMCApi.ValueType.DOUBLE
             elif valueType == bool:
-                self.type = SMCApi.ValueType.BOOLEAN
+                self.typev = SMCApi.ValueType.BOOLEAN
             elif valueType == SMCApi.ObjectArray:
-                self.type = SMCApi.ValueType.OBJECT_ARRAY
+                self.typev = SMCApi.ValueType.OBJECT_ARRAY
             else:
                 raise ValueError("wrong type")
 
@@ -917,6 +917,17 @@ class ExecutionContextToolImpl(ExecutionContext, SMCApi.ExecutionContextTool):
         if not value:
             raise SMCApi.ModuleException("value")
         self.output.append(Message(SMCApi.MessageType.LOG, Value(value)))
+
+    def countSource(self):
+        return len(self.input)
+
+    def getSource(self, id):
+        sources = []
+        if self.input:
+            for i in range(len(self.input)):
+                sources.append(Source(self, self.configuration.getName(), self.getName(), ExecutionContext(self, str(i)), None, None, False, None,
+                                      SMCApi.SourceType.EXECUTION_CONTEXT, i))
+        return SourceList(self, self.configuration.getName(), self.getName(), sources).getSource(id)
 
     def getMessagesAll(self, sourceId):
         if sourceId < 0 or self.countSource() <= sourceId:
