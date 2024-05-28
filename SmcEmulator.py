@@ -1034,19 +1034,19 @@ class FlowControlTool(SMCApi.FlowControlTool):
     def countManagedExecutionContexts(self):
         return len(self.executionContextsOutput)
 
-    def executeNow(self, type, managedId, values):
-        if not type:
+    def executeNow(self, typev, managedId, values):
+        if not typev:
             raise SMCApi.ModuleException("type")
         if managedId < 0 or managedId >= self.countManagedExecutionContexts():
             raise SMCApi.ModuleException("managedId")
         messageType = SMCApi.MessageType.FLOW_CONTROL_EXECUTE_NOW_START
-        if type == SMCApi.CommandType.START:
+        if typev == SMCApi.CommandType.START:
             messageType = SMCApi.MessageType.FLOW_CONTROL_EXECUTE_NOW_START
-        elif type == SMCApi.CommandType.EXECUTE:
+        elif typev == SMCApi.CommandType.EXECUTE:
             messageType = SMCApi.MessageType.FLOW_CONTROL_EXECUTE_NOW_EXECUTE
-        elif type == SMCApi.CommandType.UPDATE:
+        elif typev == SMCApi.CommandType.UPDATE:
             messageType = SMCApi.MessageType.FLOW_CONTROL_EXECUTE_NOW_UPDATE
-        elif type == SMCApi.CommandType.STOP:
+        elif typev == SMCApi.CommandType.STOP:
             messageType = SMCApi.MessageType.FLOW_CONTROL_EXECUTE_NOW_STOP
         self.executionContextTool.add(messageType, managedId)
         if self.executionContexts:
@@ -1054,8 +1054,8 @@ class FlowControlTool(SMCApi.FlowControlTool):
                 values = map(lambda v: Value(v).getValue(), values)
             self.executionContextsOutput[managedId] = self.executionContexts[managedId](values)
 
-    def executeParallel(self, type, managedIds, values, waitingTacts=0, maxWorkInterval=-1):
-        if not type:
+    def executeParallel(self, typev, managedIds, values, waitingTacts=0, maxWorkInterval=-1):
+        if not typev:
             raise SMCApi.ModuleException("type")
         if not managedIds or len(managedIds) == 0:
             raise SMCApi.ModuleException("managedIds")
@@ -1065,13 +1065,13 @@ class FlowControlTool(SMCApi.FlowControlTool):
             if managedId < 0 or managedId >= self.countManagedExecutionContexts():
                 raise SMCApi.ModuleException("managedId")
         messageType = SMCApi.MessageType.FLOW_CONTROL_EXECUTE_PARALLEL_START
-        if type == SMCApi.CommandType.START:
+        if typev == SMCApi.CommandType.START:
             messageType = SMCApi.MessageType.FLOW_CONTROL_EXECUTE_PARALLEL_START
-        elif type == SMCApi.CommandType.EXECUTE:
+        elif typev == SMCApi.CommandType.EXECUTE:
             messageType = SMCApi.MessageType.FLOW_CONTROL_EXECUTE_PARALLEL_EXECUTE
-        elif type == SMCApi.CommandType.UPDATE:
+        elif typev == SMCApi.CommandType.UPDATE:
             messageType = SMCApi.MessageType.FLOW_CONTROL_EXECUTE_PARALLEL_UPDATE
-        elif type == SMCApi.CommandType.STOP:
+        elif typev == SMCApi.CommandType.STOP:
             messageType = SMCApi.MessageType.FLOW_CONTROL_EXECUTE_PARALLEL_STOP
         for managedId in managedIds:
             self.executionContextTool.add(messageType, managedId)
