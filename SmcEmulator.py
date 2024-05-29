@@ -43,8 +43,10 @@ class Value(SMCApi.IValue):
 
 
 class Message(SMCApi.IMessage, SMCApi.IValue):
-    def __init__(self, messageType, value, date=None):
-        # type: (SMCApi.MessageType, SMCApi.IValue, datetime) -> None
+    def __init__(self, value, messageType=None, date=None):
+        # type: (SMCApi.IValue, SMCApi.MessageType, datetime) -> None
+        if messageType is None:
+            messageType = SMCApi.MessageType.DATA
         self.messageType = messageType
         self.value = value
         if date is not None:
@@ -66,35 +68,39 @@ class Message(SMCApi.IMessage, SMCApi.IValue):
 
 
 class Action(SMCApi.IAction):
-    def __init__(self, messages, type):
+    def __init__(self, messages, typev=None):
         # type: (List[SMCApi.IMessage], SMCApi.ActionType) -> None
         if messages is not None:
             self.messages = list(messages)
         else:
             self.messages = []
-        self.type = type
+        if typev is None:
+            typev = SMCApi.ActionType.EXECUTE
+        self.typev = typev
 
     def getMessages(self):
         return self.messages
 
     def getType(self):
-        return self.type
+        return self.typev
 
 
 class Command(SMCApi.ICommand):
-    def __init__(self, actions, type):
+    def __init__(self, actions, typev=None):
         # type: (List[SMCApi.IAction], SMCApi.CommandType) -> None
         if actions is not None:
             self.actions = list(actions)
         else:
             self.actions = []
-        self.type = type
+        if typev is None:
+            typev = SMCApi.CommandType.EXECUTE
+        self.typev = typev
 
     def getActions(self):
         return self.actions
 
     def getType(self):
-        return self.type
+        return self.typev
 
 
 class ModuleType(object):
@@ -891,7 +897,7 @@ class ExecutionContextToolImpl(ExecutionContext, SMCApi.ExecutionContextTool):
 
     def add(self, messageType, value):
         # type: (SMCApi.MessageType, object) -> None
-        self.output.append(Message(messageType, Value(value)))
+        self.output.append(Message(Value(value), messageType))
 
     def addMessage(self, value):
         if not value:
@@ -899,9 +905,9 @@ class ExecutionContextToolImpl(ExecutionContext, SMCApi.ExecutionContextTool):
         if isinstance(value, list):
             date = datetime.datetime.now()
             for element in value:
-                self.output.append(Message(SMCApi.MessageType.DATA, Value(element), date))
+                self.output.append(Message(Value(element), SMCApi.MessageType.DATA, date))
         else:
-            self.output.append(Message(SMCApi.MessageType.DATA, Value(value)))
+            self.output.append(Message(Value(value), SMCApi.MessageType.DATA))
 
     def addError(self, value):
         if not value:
@@ -909,14 +915,14 @@ class ExecutionContextToolImpl(ExecutionContext, SMCApi.ExecutionContextTool):
         if isinstance(value, list):
             date = datetime.datetime.now()
             for element in value:
-                self.output.append(Message(SMCApi.MessageType.ERROR, Value(element), date))
+                self.output.append(Message(Value(element), SMCApi.MessageType.ERROR, date))
         else:
-            self.output.append(Message(SMCApi.MessageType.ERROR, Value(value)))
+            self.output.append(Message(Value(value), SMCApi.MessageType.ERROR))
 
     def addLog(self, value):
         if not value:
             raise SMCApi.ModuleException("value")
-        self.output.append(Message(SMCApi.MessageType.LOG, Value(value)))
+        self.output.append(Message(Value(value), SMCApi.MessageType.LOG))
 
     def countSource(self):
         return len(self.input)
@@ -1138,12 +1144,12 @@ class Process:
         result = []
         if self.module is None:
             return result
-        result.append(Message(SMCApi.MessageType.ACTION_START, Value(1)))
+        result.append(Message(Value(1), SMCApi.MessageType.ACTION_START))
         try:
             self.module.start(self.configurationTool)
         except Exception as e:
-            result.append(Message(SMCApi.MessageType.ACTION_ERROR, Value("error {}".format(e.message))))
-        result.append(Message(SMCApi.MessageType.ACTION_STOP, Value(1)))
+            result.append(Message(Value("error {}".format(e.message)), SMCApi.MessageType.ACTION_ERROR))
+        result.append(Message(Value(1), SMCApi.MessageType.ACTION_STOP))
         return result
 
     def execute(self, executionContextTool):
@@ -1153,7 +1159,7 @@ class Process:
             return result
         self.configurationTool.init(executionContextTool)
         executionContextTool.init(self.configurationTool)
-        result.append(Message(SMCApi.MessageType.ACTION_START, Value(1)))
+        result.append(Message(Value(1), SMCApi.MessageType.ACTION_START))
         try:
             output = list(executionContextTool.output)
             executionContextTool.output = []
@@ -1162,8 +1168,8 @@ class Process:
             output.extend(executionContextTool.output)
             executionContextTool.output = output
         except Exception as e:
-            result.append(Message(SMCApi.MessageType.ACTION_ERROR, Value("error {}".format(e.message))))
-        result.append(Message(SMCApi.MessageType.ACTION_STOP, Value(1)))
+            result.append(Message(Value("error {}".format(e.message)), SMCApi.MessageType.ACTION_ERROR))
+        result.append(Message(Value(1), SMCApi.MessageType.ACTION_STOP))
         return result
 
     def update(self):
@@ -1171,12 +1177,12 @@ class Process:
         result = []
         if self.module is None:
             return result
-        result.append(Message(SMCApi.MessageType.ACTION_START, Value(1)))
+        result.append(Message(Value(1), SMCApi.MessageType.ACTION_START))
         try:
             self.module.update(self.configurationTool)
         except Exception as e:
-            result.append(Message(SMCApi.MessageType.ACTION_ERROR, Value("error {}".format(e.message))))
-        result.append(Message(SMCApi.MessageType.ACTION_STOP, Value(1)))
+            result.append(Message(Value("error {}".format(e.message)), SMCApi.MessageType.ACTION_ERROR))
+        result.append(Message(Value(1), SMCApi.MessageType.ACTION_STOP))
         return result
 
     def stop(self):
@@ -1184,10 +1190,10 @@ class Process:
         result = []
         if self.module is None:
             return result
-        result.append(Message(SMCApi.MessageType.ACTION_START, Value(1)))
+        result.append(Message(Value(1), SMCApi.MessageType.ACTION_START))
         try:
             self.module.stop(self.configurationTool)
         except Exception as e:
-            result.append(Message(SMCApi.MessageType.ACTION_ERROR, Value("error {}".format(e.message))))
-        result.append(Message(SMCApi.MessageType.ACTION_STOP, Value(1)))
+            result.append(Message(Value("error {}".format(e.message)), SMCApi.MessageType.ACTION_ERROR))
+        result.append(Message(Value(1), SMCApi.MessageType.ACTION_STOP))
         return result
