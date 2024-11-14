@@ -841,6 +841,9 @@ class ConfigurationToolImpl(Configuration, SMCApi.ConfigurationTool):
         print
         "%s: Log Cfg %d: %s" % (datetime.datetime.now(), 0, text)
 
+    def getInfo(self, key):
+        return None
+
 
 # noinspection PyAbstractClass
 class ExecutionContextToolImpl(ExecutionContext, SMCApi.ExecutionContextTool):
