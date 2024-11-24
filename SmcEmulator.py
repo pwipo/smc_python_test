@@ -1060,7 +1060,7 @@ class FlowControlTool(SMCApi.FlowControlTool):
         self.executionContextTool.add(messageType, managedId)
         if self.executionContexts:
             if type(values) == list:
-                values = map(lambda v: Value(v).getValue(), values)
+                values = map(lambda v: Value(v), values)
             self.executionContextsOutput[managedId] = self.executionContexts[managedId](values)
 
     def executeParallel(self, typev, managedIds, values, waitingTacts=0, maxWorkInterval=-1):
@@ -1088,7 +1088,7 @@ class FlowControlTool(SMCApi.FlowControlTool):
         self.executeInParalel.append(managedIds)
         if self.executionContexts:
             if type(values) == list:
-                values = map(lambda v: Value(v).getValue(), values)
+                values = map(lambda v: Value(v), values)
             for managedId in managedIds:
                 self.executionContextsOutput[managedId] = self.executionContexts[managedId](values)
         return len(self.executeInParalel) - 1
