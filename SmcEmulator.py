@@ -818,28 +818,23 @@ class ConfigurationToolImpl(Configuration, SMCApi.ConfigurationTool):
 
     # noinspection PyStatementEffect
     def loggerTrace(self, text):
-        print
-        "%s: Log Cfg %d: %s" % (datetime.datetime.now(), 0, text)
+        print "%s: Log Cfg %d: %s" % (datetime.datetime.now(), 0, text)
 
     # noinspection PyStatementEffect
     def loggerDebug(self, text):
-        print
-        "%s: Log Cfg %d: %s" % (datetime.datetime.now(), 0, text)
+        print "%s: Log Cfg %d: %s" % (datetime.datetime.now(), 0, text)
 
     # noinspection PyStatementEffect
     def loggerInfo(self, text):
-        print
-        "%s: Log Cfg %d: %s" % (datetime.datetime.now(), 0, text)
+        print "%s: Log Cfg %d: %s" % (datetime.datetime.now(), 0, text)
 
     # noinspection PyStatementEffect
     def loggerWarn(self, text):
-        print
-        "%s: Log Cfg %d: %s" % (datetime.datetime.now(), 0, text)
+        print "%s: Log Cfg %d: %s" % (datetime.datetime.now(), 0, text)
 
     # noinspection PyStatementEffect
     def loggerError(self, text):
-        print
-        "%s: Log Cfg %d: %s" % (datetime.datetime.now(), 0, text)
+        print "%s: Log Cfg %d: %s" % (datetime.datetime.now(), 0, text)
 
     def getInfo(self, key):
         return None
