@@ -337,7 +337,9 @@ class Configuration(SMCApi.CFGIConfigurationManaged):
     def getSetting(self, key):
         if not key:
             raise SMCApi.ModuleException("key")
-        return self.settings[key]
+        if key in self.settings:
+            return self.settings[key]
+        return None
 
     def getAllVariables(self):
         return self.variables
@@ -345,7 +347,9 @@ class Configuration(SMCApi.CFGIConfigurationManaged):
     def getVariable(self, key):
         if not key:
             raise SMCApi.ModuleException("key")
-        return self.variables[key]
+        if key in self.variables:
+            return self.variables[key]
+        return None
 
     def getBufferSize(self):
         return self.bufferSize
@@ -1033,7 +1037,8 @@ class FlowControlTool(SMCApi.FlowControlTool):
         self.executionContextTool = executionContextTool
         self.executionContextsOutput = executionContextsOutput
         self.executionContexts = executionContexts
-        self.executeInParalel = []
+        self.executeInParalel = dict()
+        self.threadIdGenerator = 0
 
     def countManagedExecutionContexts(self):
         return len(self.executionContextsOutput)
@@ -1080,13 +1085,14 @@ class FlowControlTool(SMCApi.FlowControlTool):
         for managedId in managedIds:
             self.executionContextTool.add(messageType, managedId)
         self.executionContextTool.add(SMCApi.MessageType.FLOW_CONTROL_EXECUTE_PARALLEL_WAITING_TACTS, waitingTacts)
-        self.executeInParalel.append(managedIds)
+        self.threadIdGenerator += 1
+        self.executeInParalel[self.threadIdGenerator] = managedIds
         if self.executionContexts:
             if type(values) == list:
                 values = map(lambda v: Value(v), values)
             for managedId in managedIds:
                 self.executionContextsOutput[managedId] = self.executionContexts[managedId](values)
-        return len(self.executeInParalel) - 1
+        return self.threadIdGenerator
 
     def isThreadActive(self, threadId):
         return False
@@ -1102,10 +1108,12 @@ class FlowControlTool(SMCApi.FlowControlTool):
         return [Command(self.executionContextTool.filter([self.executionContextsOutput[managedId]]), SMCApi.CommandType.EXECUTE)]
 
     def releaseThread(self, threadId):
-        del self.executeInParalel[threadId]
+        if threadId in self.executeInParalel:
+            del self.executeInParalel[threadId]
 
     def releaseThreadCache(self, threadId):
-        del self.executeInParalel[threadId]
+        if threadId in self.executeInParalel:
+            del self.executeInParalel[threadId]
 
     def getManagedExecutionContext(self, id):
         return None
