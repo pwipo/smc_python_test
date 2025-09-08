@@ -5,6 +5,7 @@ http://www.smcsystem.ru
 import datetime
 import os.path
 import tempfile
+import traceback
 from __builtin__ import long, unicode
 from typing import Dict, List, Callable
 
@@ -1155,6 +1156,7 @@ class Process:
             self.module.start(self.configurationTool)
         except Exception as e:
             result.append(Message(Value("error {}".format(e.message)), SMCApi.MessageType.ACTION_ERROR))
+            traceback.print_exc()
         result.append(Message(Value(1), SMCApi.MessageType.ACTION_STOP))
         return result
 
@@ -1175,6 +1177,7 @@ class Process:
             executionContextTool.output = output
         except Exception as e:
             result.append(Message(Value("error {}".format(e.message)), SMCApi.MessageType.ACTION_ERROR))
+            traceback.print_exc()
         result.append(Message(Value(1), SMCApi.MessageType.ACTION_STOP))
         return result
 
@@ -1188,6 +1191,7 @@ class Process:
             self.module.update(self.configurationTool)
         except Exception as e:
             result.append(Message(Value("error {}".format(e.message)), SMCApi.MessageType.ACTION_ERROR))
+            traceback.print_exc()
         result.append(Message(Value(1), SMCApi.MessageType.ACTION_STOP))
         return result
 
@@ -1201,5 +1205,6 @@ class Process:
             self.module.stop(self.configurationTool)
         except Exception as e:
             result.append(Message(Value("error {}".format(e.message)), SMCApi.MessageType.ACTION_ERROR))
+            traceback.print_exc()
         result.append(Message(Value(1), SMCApi.MessageType.ACTION_STOP))
         return result
