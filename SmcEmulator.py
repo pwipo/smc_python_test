@@ -7,9 +7,9 @@ import os.path
 import tempfile
 import traceback
 from __builtin__ import long, unicode
-from typing import Dict, List, Callable
 
 import SMCApi
+from typing import Dict, List, Callable
 
 
 class Value(SMCApi.IValue):
@@ -153,6 +153,9 @@ class Module(SMCApi.CFGIModule):
     def getMaxCountManagedConfigurations(self, typeId):
         return self.types[typeId].maxCountManagedConfigurations
 
+    def getInfo(self):
+        return SMCApi.ObjectElement()
+
 
 class Container(SMCApi.CFGIContainerManaged):
     def __init__(self, executionContextTool, name, containers=None, configurations=None):
@@ -213,6 +216,24 @@ class Container(SMCApi.CFGIContainerManaged):
 
     def isEnable(self):
         return self.enable
+
+    def getConfigurationManaged(self, id):
+        return None
+
+    def getContainerManaged(self, id):
+        return None
+
+    def getShapes(self):
+        return SMCApi.ObjectArray()
+
+    def getDecorationShapes(self):
+        return SMCApi.ObjectArray()
+
+    def getSmcl(self):
+        return ""
+
+    def saveSmcl(self, text):
+        return True
 
 
 class Configuration(SMCApi.CFGIConfigurationManaged):
@@ -363,6 +384,15 @@ class Configuration(SMCApi.CFGIConfigurationManaged):
 
     def isActive(self):
         return False
+
+    def getWorkDirectory(self):
+        return None
+
+    def getContainerSimple(self):
+        return self.container
+
+    def getShape(self):
+        return SMCApi.ObjectElement()
 
 
 class SourceList(SMCApi.CFGISourceListManaged):
@@ -819,7 +849,7 @@ class ConfigurationToolImpl(Configuration, SMCApi.ConfigurationTool):
         return FileToolImpl(self.homeFolder)
 
     def getWorkDirectory(self):
-        return self.workDirectory
+        return self.workDirectory()
 
     # noinspection PyStatementEffect
     def loggerTrace(self, text):
@@ -843,6 +873,12 @@ class ConfigurationToolImpl(Configuration, SMCApi.ConfigurationTool):
 
     def getInfo(self, key):
         return None
+
+    def getContainerSimple(self):
+        return self.getContainerSimple()
+
+    def getShape(self):
+        return self.getShape()
 
 
 # noinspection PyAbstractClass
@@ -1001,6 +1037,12 @@ class ExecutionContextToolImpl(ExecutionContext, SMCApi.ExecutionContextTool):
     def isNeedStop(self):
         return False
 
+    def getThreadId(self):
+        return 1
+
+    def getNickName(self):
+        return None
+
 
 class ConfigurationControlTool(SMCApi.ConfigurationControlTool):
     def __init__(self, executionContextTool, modules, managedConfigurations):
@@ -1117,6 +1159,18 @@ class FlowControlTool(SMCApi.FlowControlTool):
             del self.executeInParalel[threadId]
 
     def getManagedExecutionContext(self, id):
+        return None
+
+    def executeNowDirect(self, type, managedEC, values):
+        return None
+
+    def executeParallelDirect(self, type, managedECs, values, waitingTacts=0, maxWorkInterval=-1):
+        return None
+
+    def getMessagesFromExecutedDirect(self, managedEC, threadId=0):
+        return None
+
+    def getCommandsFromExecutedDirect(self, managedEC, threadId=0):
         return None
 
 
